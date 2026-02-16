@@ -12,7 +12,7 @@ class PieceRank(Enum) :
     GENERAL = 9
     COLONEL = 8
     MAJOR = 7
-    CAPITAIN = 6
+    CAPTAIN = 6
     LIEUTENANT = 5
     SERGEANT = 4
     MINER = 3
