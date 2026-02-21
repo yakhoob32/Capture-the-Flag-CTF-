@@ -22,7 +22,7 @@ def main():
 
     # 3. Game Loop
     while True:
-        game_board.display_terminal()
+        game_board.display_terminal(logic.current_turn)
         print(f"Current Turn: {logic.current_turn.name}")
 
         # Get input (format: x1 y1 x2 y2)

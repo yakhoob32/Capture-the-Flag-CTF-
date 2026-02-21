@@ -59,7 +59,7 @@ class Board:
             if piece:
                 piece.position = (x, y)
 
-    def display_terminal(self):
+    def display_terminal(self, viewer_team):
         """
         Prints a structured, grid-like table of the board in the terminal.
         """
@@ -85,7 +85,7 @@ class Board:
                 piece = self.grid[y][x]
 
                 if piece:
-                    cell_text = f"[{piece}]"
+                    cell_text = f"[{piece.get_display(viewer_team)}]"
                 elif cell_type == CellType.LAKE:
                     cell_text = "~LAKE~"
                 elif cell_type == CellType.CLOUD:

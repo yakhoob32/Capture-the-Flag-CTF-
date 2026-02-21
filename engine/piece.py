@@ -50,3 +50,13 @@ class Piece:
     def __repr__(self):
         """Used for debugging and CLI display (Phase 1)."""
         return f"{self.team.name[0]}{self.rank.value}"
+
+    def get_display(self, viewer_team):
+        """
+        Returns the string representation of the piece based on who is looking.
+        If it's the opponent looking, hide the rank!
+        """
+        if self.team == viewer_team:
+            return f"{self.team.name[0]}{self.rank.value}"
+        else:
+            return f"{self.team.name[0]}?"

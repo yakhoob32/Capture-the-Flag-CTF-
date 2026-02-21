@@ -5,7 +5,7 @@ BOARD_SIZE = 6
 TURN_TIME_LIMIT = 30
 
 """How many turns must pass before the 8x8 cloud event is triggered."""
-CLOUD_TRIGGER_INTERVAL = 8
+CLOUD_TRIGGER_INTERVAL = 2
 """Duration (in turns) the cloud stays on the board."""
 CLOUD_DURATION = 3
 """Dimension of the storm cloud (3x3)."""

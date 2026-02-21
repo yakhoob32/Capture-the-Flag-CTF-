@@ -1,5 +1,8 @@
 from utils.constants import Team, PieceRank, CellType, GameState
-from utils.config import BOARD_SIZE
+from utils.config import BOARD_SIZE, CLOUD_TRIGGER_INTERVAL, CLOUD_DURATION, CLOUD_SIZE
+
+
+import random
 
 
 class GameLogic:
@@ -14,16 +17,59 @@ class GameLogic:
         """
         self.board = board
         self.current_turn = Team.RED  # Red always starts first
+        self.turn_counter = 0
+        self.cloud_remaining_turns = 0
         self.game_state = GameState.SETUP_PHASE
         self.winner = None
 
     def switch_turn(self):
         """Switches the active player."""
-        if self.current_turn == Team.RED:
-            self.current_turn = Team.BLUE
-        else:
-            self.current_turn = Team.RED
+        # Switch team
+        self.current_turn = Team.BLUE if self.current_turn == Team.RED else Team.RED
+
+        # Increment global turn counter
+        self.turn_counter += 1
+
+        # Handle Cloud Event logic
+        self._manage_cloud_event()
+
         print(f"Turn switched! Now it's {self.current_turn.name}'s turn.")
+
+    def _manage_cloud_event(self):
+        """Internal logic to trigger or remove the storm cloud."""
+        # If cloud is active, decrease its duration
+        if self.cloud_remaining_turns > 0:
+            self.cloud_remaining_turns -= 1
+            if self.cloud_remaining_turns == 0:
+                self._clear_all_clouds()
+                print("⛈️ The storm has passed. Visibility restored")
+
+        # Trigger new cloud every CLOUD_TRIGGER_INTERVAL turns
+        if self.turn_counter % CLOUD_TRIGGER_INTERVAL == 0:
+            self._spawn_random_cloud()
+            self.cloud_remaining_turns = CLOUD_DURATION
+            print(f"⚠️  STORM WARNING! A {CLOUD_SIZE}x{CLOUD_SIZE} cloud has appeared!")
+
+    def _spawn_random_cloud(self):
+        """Generates a cloud at a random valid position."""
+        # Find a random top-left corner for the cloud
+        max_pos = self.board.size - CLOUD_SIZE
+        start_x = random.randint(0, max_pos)
+        start_y = random.randint(0, max_pos)
+
+        for y in range(start_y, start_y + CLOUD_SIZE):
+            for x in range(start_x, start_x + CLOUD_SIZE):
+                # Don't overwrite Lakes, only Empty cells
+                if self.board.cell_metadata[y][x] == CellType.EMPTY:
+                    self.board.set_cell_type(x, y, CellType.CLOUD)
+
+    def _clear_all_clouds(self):
+        """Removes all cloud tiles from the board."""
+        for y in range(self.board.size):
+            for x in range(self.board.size):
+                if self.board.cell_metadata[y][x] == CellType.CLOUD:
+                    self.board.set_cell_type(x, y, CellType.EMPTY)
+
 
     def validate_move(self, start_pos: tuple, end_pos: tuple) -> bool:
         """
