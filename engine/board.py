@@ -1,5 +1,6 @@
 from utils.config import BOARD_SIZE
-from utils.constants import CellType
+from utils.constants import CellType, Team, PieceRank
+from engine.piece import Piece
 
 
 class Board:
@@ -18,24 +19,38 @@ class Board:
         # Initialize obstacles
         self._setup_lakes()
 
+    def _has_cloud_vision(self, team) -> bool:
+        """
+        Checks if the given team has a Scout inside a Cloud cell.
+        This grants them 'Cloud Vision' to see enemy positions inside the fog.
+        """
+        for y in range(self.size):
+            for x in range(self.size):
+                if self.cell_metadata[y][x] == CellType.CLOUD:
+                    piece = self.grid[y][x]
+                    # If there is a piece, it belongs to the viewing team, and it's a Scout
+                    if piece and piece.team == team and piece.rank == PieceRank.SCOUT:
+                        return True
+        return False
+
     def _setup_lakes(self):
         """
-        Creates two 2x2 lakes in the middle of the board.
+        Creates lakes. Adapts perfectly for the standard 10x10 board.
         """
-        mid = self.size // 2
-        lake_rows = [mid - 1, mid]  # Middle rows
-
-        # Lake 1 (Left-ish)
-        for r in lake_rows:
-            for c in [1, 2]:  # Example columns for size 6
-                if self.is_within_bounds(c, r):
+        if self.size == 10:
+            lake_rows = [4, 5]  # Middle rows for 10x10
+            for r in lake_rows:
+                # Standard Stratego lake columns
+                for c in [2, 3, 6, 7]:
                     self.set_cell_type(c, r, CellType.LAKE)
-
-        # Lake 2 (Right-ish)
-        for r in lake_rows:
-            for c in [self.size - 3, self.size - 2]:
-                if self.is_within_bounds(c, r):
-                    self.set_cell_type(c, r, CellType.LAKE)
+        else:
+            # Fallback for smaller testing boards (like our old 6x6)
+            mid = self.size // 2
+            lake_rows = [mid - 1, mid]
+            for r in lake_rows:
+                for c in [1, 2, self.size - 3, self.size - 2]:
+                    if self.is_within_bounds(c, r):
+                        self.set_cell_type(c, r, CellType.LAKE)
 
     def is_within_bounds(self, x: int, y: int) -> bool:
         """Checks if the given coordinates are inside the board."""
@@ -46,7 +61,7 @@ class Board:
         if self.is_within_bounds(x, y):
             self.cell_metadata[y][x] = cell_type
 
-    def get_piece_at(self, x: int, y: int):
+    def get_piece_at(self, x: int, y: int) -> Piece | None:
         """Returns the piece object at the specified location."""
         if self.is_within_bounds(x, y):
             return self.grid[y][x]
@@ -62,6 +77,8 @@ class Board:
     def display_terminal(self, viewer_team):
         """
         Prints a structured, grid-like table of the board in the terminal.
+        Includes Cloud Vision logic: enemies in clouds are completely hidden
+        unless the viewing team has a Scout inside the cloud.
         """
         cell_width = 10  # Width of each cell
 
@@ -74,6 +91,9 @@ class Board:
         horizontal_line = "    " + ("-" * (self.size * cell_width))
         print(horizontal_line)
 
+        # Check if the current viewer has a Scout in the cloud
+        has_cloud_vision = self._has_cloud_vision(viewer_team)
+
         # Main Board Loop
         for y in range(self.size):
             row_content = f"{y:<2} |"
@@ -84,12 +104,19 @@ class Board:
                 cell_type = self.cell_metadata[y][x]
                 piece = self.grid[y][x]
 
-                if piece:
+                if cell_type == CellType.CLOUD:
+                    if piece:
+                        if piece.team == viewer_team or has_cloud_vision:
+                            cell_text = f"[{piece.get_display(viewer_team)}]"
+                        else:
+                            cell_text = "##FOG##"
+                    else:
+                        cell_text = "##FOG##"
+
+                elif piece:
                     cell_text = f"[{piece.get_display(viewer_team)}]"
                 elif cell_type == CellType.LAKE:
                     cell_text = "~LAKE~"
-                elif cell_type == CellType.CLOUD:
-                    cell_text = "##FOG##"
 
                 row_content += f"{cell_text:^{cell_width}}"
                 spacer_line += f"{'':^{cell_width}}"
@@ -98,4 +125,5 @@ class Board:
             print(row_content)
             print(spacer_line)
             print(horizontal_line)
+
         print("\n")

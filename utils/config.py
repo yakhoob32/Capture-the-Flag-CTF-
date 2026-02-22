@@ -1,11 +1,11 @@
-"""Start with 6 for testing Phase 1, change to 12 for the final Elite version."""
-BOARD_SIZE = 6
+# --- Board Settings ---
+BOARD_SIZE = 10
 
 """ Maximum time (in seconds) a player has to make a move."""
 TURN_TIME_LIMIT = 30
 
-"""How many turns must pass before the 8x8 cloud event is triggered."""
-CLOUD_TRIGGER_INTERVAL = 2
+"""How many turns must pass before the 3x3 cloud event is triggered."""
+CLOUD_TRIGGER_INTERVAL = 5
 """Duration (in turns) the cloud stays on the board."""
 CLOUD_DURATION = 3
 """Dimension of the storm cloud (3x3)."""

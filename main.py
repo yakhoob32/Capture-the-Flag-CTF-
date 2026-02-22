@@ -1,24 +1,20 @@
 from engine.board import Board
-from engine.piece import Piece
+from ai.auto_setup import AutoSetup
 from engine.game_logic import GameLogic
-from utils.constants import PieceRank, Team
+from utils.constants import PieceRank, Team, GameState
 
 
 def main():
-    # 1. Setup
+    # 1. Initialize the board and the referee
     game_board = Board()
     logic = GameLogic(game_board)
 
-    # 2. Place pieces for testing
-    # Red Scout at (0, 0)
-    scout = Piece(PieceRank.SCOUT, Team.RED)
-    game_board.place_piece(scout, 0, 0)
+    # 2. Smart Auto-Setup Phase via AI Package
+    setup_manager = AutoSetup(logic)
+    setup_manager.deploy_all()
 
-    # Blue Bomb at (0, 4) - to block path
-    bomb = Piece(PieceRank.BOMB, Team.BLUE)
-    game_board.place_piece(bomb, 0, 4)
-
-    print("=== Super Stratego Phase 1 Test ===")
+    print("=== Super Stratego Elite: Phase 1 (CLI Version) ===")
+    print("Instructions: Enter move as 'start_x start_y end_x end_y' (e.g., 0 3 0 4)")
 
     # 3. Game Loop
     while True:
@@ -42,6 +38,11 @@ def main():
             # 4. Validate and Execute
             if logic.validate_move(start_pos, end_pos):
                 logic.execute_move(start_pos, end_pos)
+
+                if logic.game_state == GameState.FINISHED:
+                    game_board.display_terminal(logic.winner)
+                    print(f"🏆 CONGRATULATIONS! Team {logic.winner.name} has won the match!")
+                    break
 
         except ValueError:
             print("Invalid input! Please enter numbers only.")
