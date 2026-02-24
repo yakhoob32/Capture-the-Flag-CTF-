@@ -2,6 +2,8 @@ import pygame
 import sys
 import os
 from game_screen import GameScreen
+from engine.board import Board
+from engine.game_logic import GameLogic
 
 # --- 1. Pygame Initialization ---
 pygame.init()
@@ -170,7 +172,9 @@ def  run_gui():
 
     clock = pygame.time.Clock()
     state = "MAIN_MENU"
-    game_screen = GameScreen(WIDTH, HEIGHT)
+    game_board = Board()
+    game_logic = GameLogic(game_board)
+    game_screen = GameScreen(WIDTH, HEIGHT, game_board, game_logic)
 
     # Main Menu Buttons
     btn_vs_human = Button(250, 200, 300, 60, "Play vs Human")
@@ -241,6 +245,8 @@ def  run_gui():
                     except ValueError:
                         vol_textbox.text = str(current_volume)  # Revert if empty/invalid
 
+            elif state == "PLAYING_AI":
+                game_screen.handle_event(event)
         # --- Drawing Phase ---
         SCREEN.fill(BLACK)  # Always clear the screen first
 

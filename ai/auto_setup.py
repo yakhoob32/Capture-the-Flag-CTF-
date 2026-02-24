@@ -22,9 +22,9 @@ class AutoSetup:
     def _smart_setup_team(self, team: Team):
         """Deploys a single team strategically."""
         # 1. Define territory boundaries based on the team
-        rows = [0, 1, 2, 3] if team == Team.RED else [6, 7, 8, 9]
-        back_row = 0 if team == Team.RED else 9
-        forward_dir = 1 if team == Team.RED else -1
+        rows = [6, 7, 8, 9] if team == Team.RED else [0, 1, 2, 3]
+        back_row = 9 if team == Team.RED else 0
+        forward_dir = -1 if team == Team.RED else 1
 
         available_pos = [(x, y) for x in range(self.board.size) for y in rows]
 
