@@ -4,6 +4,8 @@ import os
 from game_screen import GameScreen
 from engine.board import Board
 from engine.game_logic import GameLogic
+from ai.ai_bot import AIBot
+from utils.constants import Team, GameState
 
 # --- 1. Pygame Initialization ---
 pygame.init()
@@ -175,6 +177,7 @@ def  run_gui():
     game_board = Board()
     game_logic = GameLogic(game_board)
     game_screen = GameScreen(WIDTH, HEIGHT, game_board, game_logic)
+    ai_player = AIBot(Team.BLUE, game_logic, level=2)
 
     # Main Menu Buttons
     btn_vs_human = Button(250, 200, 300, 60, "Play vs Human")
@@ -197,6 +200,9 @@ def  run_gui():
             pygame.mixer.music.set_volume(current_volume / 100.0)
             btn_mute.text = "🔊"
 
+    ai_think_start_time = 0
+    is_ai_thinking = False
+
     running = True
     while running:
         SCREEN.fill(BLACK)  # Background
@@ -207,11 +213,14 @@ def  run_gui():
             if event.type == pygame.QUIT:
                 running = False
 
+            # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            #     pygame.display.set_mode((WIDTH, HEIGHT))
             if state == "MAIN_MENU":
                 if btn_vs_human.is_clicked(event):
                     print("Transition to Local Game...")
                 elif btn_vs_bot.is_clicked(event):
                     state = "PLAYING_AI"
+                    # pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
                 elif btn_online.is_clicked(event):
                     print("Transition to Online Game...")
                 elif btn_settings.is_clicked(event):
@@ -247,6 +256,28 @@ def  run_gui():
 
             elif state == "PLAYING_AI":
                 game_screen.handle_event(event)
+        if state == "PLAYING_AI" and game_logic.game_state == GameState.IN_PROGRESS:
+            if game_logic.current_turn == Team.BLUE:
+                # 1. Start the timer if AI just started thinking
+                if not is_ai_thinking:
+                    is_ai_thinking = True
+                    ai_think_start_time = pygame.time.get_ticks()
+
+                # 2. Check if 600ms have passed since thinking started
+                current_time = pygame.time.get_ticks()
+                if current_time - ai_think_start_time > 1500:
+                    ai_move = ai_player.get_move()
+                    if ai_move:
+                        start_pos, end_pos = ai_move
+                        print(f"🤖 AI chose to move from {start_pos} to {end_pos}")
+                        game_logic.execute_move(start_pos, end_pos)
+                    else:
+                        print("🤖 AI has no valid moves left!")
+
+                    # 3. Reset thinking state for the next turn
+                    is_ai_thinking = False
+
+
         # --- Drawing Phase ---
         SCREEN.fill(BLACK)  # Always clear the screen first
 

@@ -56,12 +56,48 @@ class GameScreen:
         # Becomes True when all 40 pieces are placed
         self.setup_complete = False
 
+        # --- Define Auto-Deploy Button Rect ---
+        panel_x = self.board_x + self.board_width + 40
+        # Position the button at the bottom of the side panel
+        self.btn_auto_deploy = pygame.Rect(panel_x + 20, self.height - 80, 200, 45)
+
+        # --- Action Phase Variables ---
+        # To remember which piece the player clicked on the board
+        self.selected_board_pos = None
+
     def handle_event(self, event):
         """Handle clicks on the board and the side panel."""
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_x, mouse_y = event.pos
 
-            # 1. Check if clicked inside the BOARD area
+            # --- 1. Check if Auto-Deploy Button is clicked ---
+            if not self.setup_complete and self.btn_auto_deploy.collidepoint(mouse_x, mouse_y):
+                print("⚡ Auto-deploying RED team...")
+
+                # 1. Clear the bottom 4 rows in case the player manually placed a few pieces before clicking Auto
+                for r in range(self.rows - 4, self.rows):
+                    for c in range(self.cols):
+                        self.board.grid[r][c] = None
+
+                # 2. Summon the AutoSetup AI
+                ai_setup = AutoSetup(self.logic)
+
+                # 3. Setup RED team, then BLUE team
+                ai_setup._smart_setup_team(Team.RED)
+                ai_setup._smart_setup_team(Team.BLUE)
+
+                # 4. Empty the player's inventory list visually
+                for piece in self.inventory:
+                    self.inventory[piece] = 0
+
+                # 5. Finalize the setup phase
+                self.setup_complete = True
+                self.selected_piece_name = None
+                self.logic.game_state = GameState.IN_PROGRESS
+                print("✅ Both armies deployed instantly! Let the battle begin!")
+                return  # Stop processing this click
+
+            # 2. Check if clicked inside the BOARD area
             if self.board_x <= mouse_x < self.board_x + self.board_width and \
                     self.board_y <= mouse_y < self.board_y + self.board_height:
 
@@ -105,6 +141,31 @@ class GameScreen:
                             print("Invalid placement: Cell is occupied or is a Lake.")
                     else:
                         print("Invalid placement: Must be in the bottom 4 rows.")
+
+                # --- ACTION PHASE LOGIC ---
+                elif self.logic.game_state == GameState.IN_PROGRESS:
+                    clicked_piece = self.board.get_piece_at(col, row)
+                    # 1. If no piece is currently selected
+                    if self.selected_board_pos is None:
+                        # Select only if it's our piece (RED team)
+                        if clicked_piece and clicked_piece.team == Team.RED:
+                            self.selected_board_pos = (col, row)
+                    # 2. If a piece is already selected
+                    else:
+                        # If clicked on another RED piece, change selection
+                        if clicked_piece and clicked_piece.team == Team.RED:
+                            self.selected_board_pos = (col, row)
+                        # If clicked on empty cell or Enemy piece, try to MOVE/ATTACK
+                        else:
+                            start_pos = self.selected_board_pos
+                            end_pos = (col, row)
+                            # Ask GameLogic if this move is legal
+                            if self.logic.validate_move(start_pos, end_pos):
+                                self.logic.execute_move(start_pos, end_pos)
+                                self.selected_board_pos = None  # Deselect after moving
+                            else:
+                                self.selected_board_pos = None  # Deselect if invalid move
+
 
             # 2. Check if clicked inside the INVENTORY PANEL (Right side)
             else:
@@ -152,6 +213,11 @@ class GameScreen:
                                         self.cell_size, self.cell_size)
                 pygame.draw.rect(surface, color, cell_rect)
 
+                # --- Highlight Selected Piece ---
+                # Draw a thick gold border around the currently selected piece
+                if self.selected_board_pos == (col, row):
+                    pygame.draw.rect(surface, HIGHLIGHT_COLOR, cell_rect, 4)
+
                 # --- Draw the Pieces ---
                 # Ask the backend board if there is a piece at this (col, row)
                 piece = self.board.get_piece_at(col, row)
@@ -164,8 +230,12 @@ class GameScreen:
                     pygame.draw.circle(surface, piece_color, center, self.cell_size // 2 - 4)
                     pygame.draw.circle(surface, DARK_BROWN, center, self.cell_size // 2 - 4, 2)  # Border
 
+                    if piece.team == Team.RED or piece.is_revealed:
+                        text_val = str(piece.rank.value)
+                    else:
+                        text_val = "?"
+
                     # Draw the rank value (number/letter) in the center of the piece
-                    text_val = str(piece.rank.value)
                     text_surf = self.font_piece.render(text_val, True, WHITE)
                     surface.blit(text_surf, text_surf.get_rect(center=center))
 
@@ -196,19 +266,22 @@ class GameScreen:
         surface.blit(title_surf, (panel_x + panel_width // 2 - title_surf.get_width() // 2, panel_y + 20))
 
         # خط جداکننده
-        pygame.draw.line(surface, DARK_BROWN, (panel_x + 10, panel_y + 60), (panel_x + panel_width - 10, panel_y + 60),
-                         2)
+        pygame.draw.line(surface, DARK_BROWN, (panel_x + 10, panel_y + 60), (panel_x + panel_width - 10, panel_y + 60),2)
 
-        # اطلاعات تستی (بعداً داینامیک میشه)
-        turn_text = self.font_text.render("Turn: RED TEAM", True, (200, 50, 50))
+        # --- Dynamic Turn Indicator ---
+        if self.logic.current_turn == Team.RED:
+            turn_str = "Turn: RED TEAM"
+            turn_color = RED_TEAM_COLOR
+        else:
+            turn_str = "Turn: BLUE TEAM (AI)"
+            turn_color = BLUE_TEAM_COLOR
+
+        turn_text = self.font_text.render(turn_str, True, turn_color)
         surface.blit(turn_text, (panel_x + 20, panel_y + 80))
 
         phase_text = self.font_text.render("Phase: SETUP", True, DARK_BROWN)
         surface.blit(phase_text, (panel_x + 20, panel_y + 110))
 
-        # راهنمای موقت
-        help_text = self.font_text.render("Click board to test", True, (100, 100, 100))
-        surface.blit(help_text, (panel_x + 20, panel_height - 20))
 
         # --- Draw the Piece Inventory (Setup Phase Only) ---
         if not self.setup_complete:
@@ -229,3 +302,8 @@ class GameScreen:
                         pygame.draw.circle(surface, HIGHLIGHT_COLOR, (panel_x + 10, start_y + y_offset + 10), 4)
 
                     y_offset += 30
+
+            # --- Draw the Auto-Deploy Button ---
+            pygame.draw.rect(surface, BLUE_TEAM_COLOR, self.btn_auto_deploy, border_radius=10)
+            btn_text = self.font_piece.render("Auto Deploy", True, WHITE)
+            surface.blit(btn_text, btn_text.get_rect(center=self.btn_auto_deploy.center))
