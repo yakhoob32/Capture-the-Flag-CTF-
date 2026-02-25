@@ -170,13 +170,30 @@ class GameLogic:
         attacker = self.board.get_piece_at(sx, sy)
         defender = self.board.get_piece_at(ex, ey)
 
+        # --- Create a Battle Report Dictionary ---
+        report = {
+            "battle": False,
+            "start": start_pos,
+            "end": end_pos,
+            "attacker_team": attacker.team.name if attacker else "UNKNOWN",
+            "attacker_rank": attacker.rank.name if attacker else "UNKNOWN"
+        }
+
         # Remove attacker from old position regardless of outcome
         self.board.grid[sy][sx] = None
         attacker.position = None  # Temporarily in limbo
 
         if defender:
+            # 🟢 Fill defender details for the popup
+            report["battle"] = True
+            report["defender_team"] = defender.team.name
+            report["defender_rank"] = defender.rank.name
             print(f"⚔️ COMBAT! {attacker} attacks {defender}...")
             winner, message = self._resolve_battle(attacker, defender)
+            print(f"Result: {message}")
+
+            # 🟢 Add result message
+            report["message"] = message
             print(f"Result: {message}")
 
             if winner == attacker:
@@ -196,6 +213,7 @@ class GameLogic:
             print(f"Moved {attacker} to ({ex}, {ey}).")
 
         self.switch_turn()
+        return report
 
     def _resolve_battle(self, attacker, defender):
         """

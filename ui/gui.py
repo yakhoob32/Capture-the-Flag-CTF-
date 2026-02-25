@@ -84,7 +84,7 @@ class Button:
 
         pygame.draw.rect(glass_surface, self.border_color, glass_surface.get_rect(), width=2, border_radius=15)
 
-        shadow_surf = self.font.render(self.text, True, (0, 0, 0, 150))  # سایه نیمه‌شفاف
+        shadow_surf = self.font.render(self.text, True, (0, 0, 0, 150))
         shadow_rect = shadow_surf.get_rect(center=(self.rect.width // 2 + 2, self.rect.height // 2 + 2))
         glass_surface.blit(shadow_surf, shadow_rect)
 
@@ -270,7 +270,16 @@ def  run_gui():
                     if ai_move:
                         start_pos, end_pos = ai_move
                         print(f"🤖 AI chose to move from {start_pos} to {end_pos}")
-                        game_logic.execute_move(start_pos, end_pos)
+                        # 🟢 Get report
+                        report = game_logic.execute_move(start_pos, end_pos)
+
+                        # 🟢 Force update screen BEFORE showing popup so you see pieces removed
+                        SCREEN.fill(BLACK)
+                        if background_img: SCREEN.blit(background_img, (0, 0))
+                        game_screen.draw(SCREEN)
+
+                        if report and report.get("battle"):
+                            game_screen.show_battle_alert(SCREEN, report)
                     else:
                         print("🤖 AI has no valid moves left!")
 

@@ -161,8 +161,11 @@ class GameScreen:
                             end_pos = (col, row)
                             # Ask GameLogic if this move is legal
                             if self.logic.validate_move(start_pos, end_pos):
-                                self.logic.execute_move(start_pos, end_pos)
-                                self.selected_board_pos = None  # Deselect after moving
+                                report = self.logic.execute_move(start_pos, end_pos)
+                                self.selected_board_pos = None
+                                if report and report.get("battle"):
+                                    self.draw(pygame.display.get_surface())
+                                    self.show_battle_alert(pygame.display.get_surface(), report)
                             else:
                                 self.selected_board_pos = None  # Deselect if invalid move
 
@@ -307,3 +310,122 @@ class GameScreen:
             pygame.draw.rect(surface, BLUE_TEAM_COLOR, self.btn_auto_deploy, border_radius=10)
             btn_text = self.font_piece.render("Auto Deploy", True, WHITE)
             surface.blit(btn_text, btn_text.get_rect(center=self.btn_auto_deploy.center))
+
+    def show_battle_alert(self, surface, report):
+        """Displays a MODERN, tactical modal for battle results."""
+        if not report.get("battle"):
+            return
+
+        # --- 1. Extract Report Data ---
+        sx, sy = report["start"]
+        ex, ey = report["end"]
+        start_str = f"{chr(65 + sx)}{sy + 1}"
+        end_str = f"{chr(65 + ex)}{ey + 1}"
+
+        att_team = report["attacker_team"]
+        att_rank_name = report["attacker_rank"]
+        def_team = report["defender_team"]
+        def_rank_name = report["defender_rank"]
+        msg = report["message"]
+
+        # Determine team colors for display
+        att_color = RED_TEAM_COLOR if att_team == "RED" else BLUE_TEAM_COLOR
+        def_color = BLUE_TEAM_COLOR if def_team == "BLUE" else RED_TEAM_COLOR
+
+        # --- 2. Modern UI Settings ---
+        box_width, box_height = 500, 320
+        box_x = (self.width - box_width) // 2
+        box_y = (self.height - box_height) // 2
+
+        # Modern Colors
+        MODERN_BG = (30, 40, 50, 230)  # Semi-transparent dark background
+        BORDER_COLOR = (100, 200, 255)  # Neon blue for borders
+        TEXT_WHITE = (240, 240, 240)
+        TEXT_GRAY = (180, 180, 180)
+
+        # Custom fonts for the panel
+        font_header = pygame.font.SysFont("Arial", 28, bold=True)
+        font_rank_big = pygame.font.SysFont("Arial", 36, bold=True)
+        font_details = pygame.font.SysFont("Arial", 20)
+        font_result = pygame.font.SysFont("Arial", 22, bold=True, italic=True)
+
+        # Modern OK Button dimensions and rect
+        btn_width, btn_height = 160, 45
+        btn_rect = pygame.Rect(box_x + (box_width - btn_width) // 2, box_y + box_height - 65, btn_width, btn_height)
+
+        clock = pygame.time.Clock()
+        waiting = True
+
+        # Blocking Loop (Halts the game until acknowledged)
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    import sys;
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+                        waiting = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if btn_rect.collidepoint(event.pos):
+                        waiting = False
+
+            # --- Drawing Elements ---
+
+            # 1. Create a glass-like surface for the panel background
+            panel_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            pygame.draw.rect(panel_surface, MODERN_BG, panel_surface.get_rect(), border_radius=20)
+            pygame.draw.rect(panel_surface, BORDER_COLOR, panel_surface.get_rect(), width=3, border_radius=20)
+            surface.blit(panel_surface, (box_x, box_y))
+
+            # 2. Main Title
+            title_surf = font_header.render("TACTICAL ENGAGEMENT REPORT", True, BORDER_COLOR)
+            title_rect = title_surf.get_rect(center=(box_x + box_width // 2, box_y + 35))
+            surface.blit(title_surf, title_rect)
+
+            # 3. Information Layout (Left: Attacker, Right: Defender)
+            center_x = box_x + box_width // 2
+            left_center = box_x + box_width // 4
+            right_center = box_x + 3 * box_width // 4
+            content_y_start = box_y + 90
+
+            # --- Left Column (Attacker) ---
+            att_label = font_details.render(f"ATTACKER ({att_team})", True, TEXT_GRAY)
+            surface.blit(att_label, att_label.get_rect(center=(left_center, content_y_start)))
+
+            att_rank_surf = font_rank_big.render(att_rank_name, True, att_color)
+            surface.blit(att_rank_surf, att_rank_surf.get_rect(center=(left_center, content_y_start + 40)))
+
+            # --- Center (VS) ---
+            vs_surf = font_header.render("VS", True, TEXT_WHITE)
+            surface.blit(vs_surf, vs_surf.get_rect(center=(center_x, content_y_start + 40)))
+
+            # --- Right Column (Defender) ---
+            def_label = font_details.render(f"DEFENDER ({def_team})", True, TEXT_GRAY)
+            surface.blit(def_label, def_label.get_rect(center=(right_center, content_y_start)))
+
+            def_rank_surf = font_rank_big.render(def_rank_name, True, def_color)
+            surface.blit(def_rank_surf, def_rank_surf.get_rect(center=(right_center, content_y_start + 40)))
+
+            # --- Movement Coordinates ---
+            move_surf = font_details.render(f"Sector: {start_str}  >>>  {end_str}", True, TEXT_GRAY)
+            surface.blit(move_surf, move_surf.get_rect(center=(center_x, content_y_start + 85)))
+
+            # --- Divider Line and Result ---
+            pygame.draw.line(surface, (100, 100, 100), (box_x + 30, box_y + 200), (box_x + box_width - 30, box_y + 200),
+                             2)
+
+            result_surf = font_result.render(f"OUTCOME: {msg}", True, BORDER_COLOR)
+            surface.blit(result_surf, result_surf.get_rect(center=(center_x, box_y + 225)))
+
+            # 4. Draw the Modern OK Button
+            is_hovered = btn_rect.collidepoint(pygame.mouse.get_pos())
+            btn_color = (50, 150, 200) if is_hovered else (30, 100, 150)
+            pygame.draw.rect(surface, btn_color, btn_rect, border_radius=15)
+            pygame.draw.rect(surface, BORDER_COLOR, btn_rect, width=2, border_radius=15)
+
+            btn_text_surf = font_details.render("ROGER THAT", True, TEXT_WHITE)
+            surface.blit(btn_text_surf, btn_text_surf.get_rect(center=btn_rect.center))
+
+            pygame.display.flip()
+            clock.tick(60)
